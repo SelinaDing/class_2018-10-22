@@ -6,22 +6,67 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(tidyverse)
 library(stringr)
 library(stringi)
+library(fs)
 ```
 
+```{r echo=FALSE}
+# combine data and header
+#head <- read_csv("indiv_header_file.csv", col_names = FALSE)
+#fec_nohead <- read_delim("itcont.txt", col_names = FALSE, delim = "|")
+#colnames(fec_nohead) <- as.character(head[1,])
+```
+
+```{r download_data, message=FALSE, cache=TRUE}
+download.file(url = "https://www.fec.gov/files/bulk-downloads/1990/indiv90.zip",
+              destfile = "indiv90.zip")
+unzip("indiv90.zip")
+indiv <- read_delim("itcont.txt", delim = "|", col_names = FALSE, escape_double = FALSE) 
+
+download.file(url = "https://www.fec.gov/files/bulk-downloads/data_dictionaries/indiv_header_file.csv",
+              destfile = "indiv_header.csv")
+indiv_header <- read_csv("indiv_header.csv", col_names = FALSE)
+
+colnames(indiv) <- as.character(indiv_header[1,])
+
+download.file(url = "https://www.fec.gov/files/bulk-downloads/1990/cm90.zip",
+              destfile = "cm90.zip")
+unzip("cm90.zip")
+cm <- read_delim("cm.txt", delim = "|", col_names = FALSE, escape_double = FALSE) 
+
+download.file(url = "https://www.fec.gov/data/advanced/files/bulk-downloads/data_dictionaries/cm_header_file.csv",
+              destfile = "cm_header.csv")
+cm_header <- read_csv("cm_header.csv", col_names = FALSE)
+
+colnames(cm) <- as.character(cm_header[1,])
+
+file_delete(c("indiv90.zip", "cm90.zip"))
+
+file_delete(c("indiv_header.csv", "cm_header.csv"))
+```
+
+* The number of observations is `r nrow(indiv)`.
+
 ```{r}
-head <- read_csv("indiv_header_file.csv", col_names = FALSE)
-fec_nohead <- read_delim("itcont.txt", col_names = FALSE, delim = "|")
-colnames(fec_nohead) <- as.character(head[1,])
+#harvard <- fec_nohead %>%
+#  transmute(name = X8, employer = X12, state = X10, amount = X15) %>%
+#  filter(str_detect(employer, "HARVARD")) %>%
+#  count(employer)
 ```
 ```{r}
-harvard <- fec_nohead %>%
-  transmute(name = X8, employer = X12, state = X10, amount = X15) %>%
-  filter(str_detect(employer, "HARVARD")) %>%
-  count(employer)
+all <- left_join(indiv, cm, by = "CMTE_ID") 
+
+harvard <- all %>%
+  filter(str_detect(EMPLOYER, "HARVARD")) %>%
+  select(NAME, EMPLOYER, CMTE_NM, TRANSACTION_AMT) %>%
+  arrange(desc(TRANSACTION_AMT)) %>%
+  head(n = 20)
+
+knitr::kable(harvard)
 ```
+
 
 
